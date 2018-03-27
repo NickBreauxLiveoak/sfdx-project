@@ -1,0 +1,27 @@
+sudo: true
+os: osx
+cache: false
+env:
+  matrix:
+  - URL=https://developer.salesforce.com/media/salesforce-cli/sfdx-osx.pkg
+  global:
+    secure: d91dDOgDhqVGhePvbv4wAiUbaaoz77FeHhdCHxnTwTHdQJ5HFkWL96+Nxr4I5qTgmdkVG5T9VLvnCa53PnNciJt+r1fc9jop7R+z/y/sKMOMuXWkkGxNlFfnzkrJssN7nfPSs0Oiutq2TBRl06Ut9EDwHNCXt+wxNFNvZKcNR+xsSkpoaLd1z2q6ChE+ppV6ebtKFQJqXiWXNFBWf1Yg4graG8rrNAevOEOp+iLqalWZSvJVNflsJOssMjyTogad0hSZi2sCXTFvpd6VknnVSAqM4Y2E3ej92RjW7aqeWZ5hnW242708IMvEo38htSrSbv1Vqo5wvGhbasxX07vg6QGBHVgP8NOTAvZLq519lW0QQzShhKgwmOjgb6IkEj+znYhsAYPJ0Lf61c7S0w9N7Ur4w4SzhTJyYN5xMcmNHSqZRJoCEjmbG88b4sdnEqGZEXLd7xfWagDvQYB2HOf4YG7JSY4IBt/rd2kxYwplTYRZ/2OFQ6wJ4WtQU+q4g80NVuM6EgmCs2ZiSnXMxSlyaL6DO2Q67iOEDgwYLolRQ99hwfCgomkDu+fb/Nmmsb0T8PHy6A0gyNGIPa4Zl5HeRIHjlOcTu3n1JvC9TigWQLwFekZBIPenRDpOyp7zBp8s5UdRlTCpWTNHe8c+Uj59TpqeTDPakpTIeGy1QD+l4/4=
+before_install:
+- openssl aes-256-cbc -k $SERVER_KEY_PASS -in assets/server.key.enc -out assets/server.key
+  -d
+- export SFDX_AUTOUPDATE_DISABLE=true
+- export SFDX_USE_GENERIC_UNIX_KEYCHAIN=true
+- export SFDX_DOMAIN_RETRY=300
+- curl $URL --output sfdx-osx.pkg
+- sudo installer -pkg sfdx-osx.pkg -target /
+- export PATH=./sfdx/$(pwd):$PATH
+- sfdx update
+- sfdx --version
+- sfdx plugins --core
+- sfdx force:auth:jwt:grant --clientid $CONSUMER_KEY --jwtkeyfile assets/server.key
+  --username $DEVHUB_USERNAME --setdefaultdevhubusername -a huborg
+script:
+- sfdx force:org:create -v huborg -s -f config/project-scratch-def.json -a ciorg
+- sfdx force:source:push -u ciorg
+- sfdx force:apex:test:run -u ciorg -c -r human -w 10
+- sfdx force:org:delete -u ciorg -p
